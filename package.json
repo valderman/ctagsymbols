@@ -1,6 +1,6 @@
 {
   "name": "ctagsymbols",
-  "displayName": "ctagsymbols",
+  "displayName": "CTags Workspace Symbol Provider",
   "description": "A bare-bones workspace symbol provider for ctags.",
   "version": "0.1.0",
   "publisher": "valderman",
