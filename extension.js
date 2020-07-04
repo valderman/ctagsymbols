@@ -10,33 +10,28 @@ exports.activate = () => {
 }
 exports.deactivate = () => {}
 
-const tagsFormat = { numbers: "numbers", regex: "regex" }
-
 class SymbolCache {
-    constructor(forFile = null, entries = [], format = tagsFormat.numbers) {
+    constructor(forFile = null, entries = []) {
         this.forFile = forFile
         this.timestamp = Date.now()
         this.entries = entries
-        this.format = format
     }
 
     async resolve(symbolInfo) {
         if(symbolInfo.location.range) {
             return symbolInfo
         }
-        switch(this.format) {
-        case tagsFormat.numbers:
+        if(typeof symbolInfo.target === "number") {
             symbolInfo.location = this.resolveNumber(symbolInfo)
-            break;
-        case tagsFormat.regex:
+        } else {
             symbolInfo.location = await this.resolveRegex(symbolInfo)
-            break;
         }
+        delete symbolInfo.target
         return symbolInfo
     }
 
     resolveNumber(symbolInfo) {
-        const line = Number(symbolInfo.target)-1
+        const line = symbolInfo.target-1
         const pos = new vscode.Position(line, 0)
         return new vscode.Location(symbolInfo.location.uri, pos)
     }
@@ -44,11 +39,11 @@ class SymbolCache {
     async resolveRegex(symbolInfo) {
         const file = await vscode.workspace.fs.readFile(symbolInfo.location.uri)
         const fileContent = file.toString()
-        const index = fileContent.indexOf(symbolInfo.target)
-        if(index < 0) {
+        const matches = fileContent.match(symbolInfo.target)
+        if(!matches) {
             return symbolInfo.location
         } else {
-            const line = fileContent.substring(0, index).split(eol).length-1
+            const line = fileContent.substring(0, matches.index).split(eol).length-1
             const pos = new vscode.Position(line, 0)
             return new vscode.Location(symbolInfo.location.uri, pos)
         }
@@ -80,38 +75,45 @@ const tagLineRegex = /([^\t]+)\t([^\t]+)\t(.*)/
 const updateSymbolCache = async (tagsFile, projectRoot) => {
     try {
         const data = (await vscode.workspace.fs.readFile(tagsFile)).toString()
-        const state = {entries: [], format: tagsFormat.numbers}
-        const entries = data.split(eol).reduce(parseSymbol.bind(null, projectRoot), state)
-        console.log(`Loaded tags (format: ${entries.format}) from ${tagsFile.fsPath}`)
-        return new SymbolCache(tagsFile, entries.entries, state.format)
+        const entries = data.split(eol).reduce(parseSymbol.bind(null, projectRoot), [])
+        console.log(`Loaded tags from ${tagsFile.fsPath}`)
+        return new SymbolCache(tagsFile, entries)
     } catch (e) {
         console.log(`Unable to read tags from '${tagsFile}'; providing no symbols.`)
         return new SymbolCache(tagsFile, [])
     }
 }
 
-const parseSymbol = (projectRoot, state, line) => {
-    if(line.startsWith("!_TAG_")) {
-        const parts = line.split("\t")
-        if(parts[0] == "!_TAG_FILE_FORMAT" && parts[1] == "2") {
-            state.format = tagsFormat.regex
-        }
-    } else {
+const parseSymbol = (projectRoot, entries, line) => {
+    if(!line.startsWith("!_TAG_")) {
         const parts = line.match(tagLineRegex)
         if(parts && parts.length == 4) {
             const file = path.join(projectRoot, parts[2])
             const loc = new vscode.Location(vscode.Uri.file(file), null)
             const entry = new vscode.SymbolInformation(parts[1], vscode.SymbolKind.Constant, "", loc)
-            entry.target = toTargetLine(parts[3])
-            state.entries.push(entry)
+            entry.target = toTargetAddress(parts[3])
+            entries.push(entry)
         }
     }
-    return state
+    return entries
 }
 
-const toTargetLine = s => {
-    const matches = s.match(/\/\^([^/]+)\$\//)
-    return matches ? matches[1] : s
+const toTargetAddress = s => {
+    let matches
+    try {
+        switch(s[0]) {
+        case '/':
+            matches = s.match(/^\/(.+)\/\s*;?/)
+            return new RegExp(matches ? matches[1] : s, "m")
+        case '?':
+            matches = s.match(/^\?(.+)\?\s*;?/)
+            return new RegExp(matches ? matches[1] : s, "m")
+        default:
+            return Number(s)
+        }
+    } catch (e) {
+        console.warn(`Invalid regular expression: '${s}'`)
+    }
 }
 
 const provideWorkspaceSymbols = async query => {

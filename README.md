@@ -21,3 +21,4 @@ to regenerate your tags whenever you make changes to your source.
 ## Known Issues
 * Ignores extended tag information; reports all symbols as constants.
 * Does not support multiple tags files.
+* Ignores concatenated Ex commands in tag files.
