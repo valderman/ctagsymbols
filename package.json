@@ -39,9 +39,14 @@
           "default": true,
           "description": "When there are multiple identical tags in the same source file, only display the first one."
         },
+        "ctagsymbols.maxNumberOfSymbols": {
+          "type": ["number", "null"],
+          "default": null,
+          "description": "Never show more than this many tags, regardless of the number of matches."
+        },
         "ctagsymbols.minQueryLength": {
-          "type": "number",
-          "default": "0",
+          "type":  ["number", "null"],
+          "default": null,
           "description": "Only process searches of at least this many characters. May help performance for large code bases."
         }
       }

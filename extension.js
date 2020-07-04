@@ -138,6 +138,7 @@ const provideWorkspaceSymbols = async query => {
     const tagsFileName = config.get("tagsFileName")
     const minQueryLength = config.get("minQueryLength")
     const hideDuplicateTags = config.get("hideDuplicateTags")
+    const maxNumberOfSymbols = config.get("maxNumberOfSymbols")
     if(query.length < minQueryLength) {
         return []
     }
@@ -145,7 +146,10 @@ const provideWorkspaceSymbols = async query => {
     const tagsFile = vscode.Uri.file(path.join(projectRoot, tagsFileName))
     const queryRegex = new RegExp(query, "i")
     await ensureSymbolCacheCoherency(tagsFile, projectRoot, hideDuplicateTags)
-    return symbolCache.entries.filter(entry => entry.name.match(queryRegex))
+    const filteredEntries = symbolCache.entries.filter(entry => entry.name.match(queryRegex))
+    return maxNumberOfSymbols
+        ? filteredEntries.slice(0, maxNumberOfSymbols)
+        : filteredEntries
 }
 
 const resolveWorkspaceSymbol = async symbol => {
