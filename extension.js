@@ -76,6 +76,10 @@ const toSymbolInformation = (symbol, file, address, projectRoot) => {
 const provideWorkspaceSymbols = async query => {
     const config = vscode.workspace.getConfiguration("ctagsymbols")
     const tagsFileName = config.get("tagsFileName")
+    const minQueryLength = config.get("minQueryLength")
+    if(query.length < minQueryLength) {
+        return []
+    }
     const projectRoot = vscode.workspace.workspaceFolders[0].uri.fsPath
     const tagsFile = path.join(projectRoot, tagsFileName)
     const queryRegex = new RegExp(query, "i")

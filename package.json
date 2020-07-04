@@ -33,6 +33,11 @@
           "type": "string",
           "default": ".tags",
           "description": "Path of the file to search for tags, relative to the project root."
+        },
+        "ctagsymbols.minQueryLength": {
+          "type": "number",
+          "default": "0",
+          "description": "Only process searches of at least this many characters. May help performance for large code bases."
         }
       }
     }
