@@ -1,7 +1,3 @@
-.vscode/**
-.vscode-test/**
-test/**
-.gitignore
-jsconfig.json
-.eslintrc.json
+.*
 node_modules
+Makefile
