@@ -1,0 +1,48 @@
+{
+  "name": "ctagsymbols",
+  "displayName": "ctagsymbols",
+  "description": "A bare-bones workspace symbol provider for ctags.",
+  "version": "1.0.0",
+  "publisher": "valderman",
+  "engines": {
+    "vscode": "^1.15.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/valderman/ctagsymbols.git"
+  },
+  "author": "Anton Ekblad",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/valderman/ctagsymbols/issues"
+  },
+  "homepage": "https://github.com/valderman/ctagsymbols",
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "*"
+  ],
+  "main": "./extension",
+  "contributes": {
+    "configuration": {
+      "type": "object",
+      "title": "ctagsymbols configuration",
+      "properties": {
+        "ctagsymbols.tagsFileName": {
+          "type": "string",
+          "default": ".tags",
+          "description": "Path of the file to search for tags, relative to the project root."
+        }
+      }
+    }
+  },
+  "scripts": {},
+  "devDependencies": {
+    "@types/node": "^6.14.3",
+    "vscode": "^1.1.29"
+  },
+  "dependencies": {
+    "vsce": "^1.77.0"
+  }
+}
