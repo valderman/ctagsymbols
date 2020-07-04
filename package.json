@@ -34,6 +34,11 @@
           "default": ".tags",
           "description": "Path of the file to search for tags, relative to the project root."
         },
+        "ctagsymbols.hideDuplicateTags": {
+          "type": "boolean",
+          "default": true,
+          "description": "When there are multiple identical tags in the same source file, only display the first one."
+        },
         "ctagsymbols.minQueryLength": {
           "type": "number",
           "default": "0",

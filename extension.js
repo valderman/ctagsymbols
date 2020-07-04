@@ -10,8 +10,21 @@ exports.activate = () => {
 }
 exports.deactivate = () => {}
 
+const groupBy = (xs, f) =>
+    xs.reduce(function(groups, x) {
+        const key = f(x)
+        groups[key] = groups[key] || []
+        groups[key].push(x);
+        return groups;
+    }, {})
+
+const uniqueEntries = entries => {
+    const groups = groupBy(entries, e => `${e.location.uri.fsPath}:${e.name}`)
+    return Object.values(groups).map(group => group[0])
+}
+
 class SymbolCache {
-    constructor(forFile = null, entries = []) {
+    constructor(forFile = null, entries = [], hideDuplicateTags = false) {
         this.forFile = forFile
         this.timestamp = Date.now()
         this.entries = entries
@@ -39,11 +52,11 @@ class SymbolCache {
     async resolveRegex(symbolInfo) {
         const file = await vscode.workspace.fs.readFile(symbolInfo.location.uri)
         const fileContent = file.toString()
-        const matches = fileContent.match(symbolInfo.target)
-        if(!matches) {
+        const index = fileContent.indexOf(symbolInfo.target)
+        if(index < 0) {
             return symbolInfo.location
         } else {
-            const line = fileContent.substring(0, matches.index).split(eol).length-1
+            const line = fileContent.substring(0, index).split(eol).length-1
             const pos = new vscode.Position(line, 0)
             return new vscode.Location(symbolInfo.location.uri, pos)
         }
@@ -65,9 +78,9 @@ const needsUpdate = async (cache, tagsFile) => {
     return false
 }
 
-const ensureSymbolCacheCoherency = async (tagsFile, projectRoot) => {
+const ensureSymbolCacheCoherency = async (tagsFile, projectRoot, hideDuplicateTags) => {
     if(await needsUpdate(symbolCache, tagsFile)) {
-        symbolCache = await updateSymbolCache(tagsFile, projectRoot)
+        symbolCache = await updateSymbolCache(tagsFile, projectRoot, hideDuplicateTags)
     }
 }
 
@@ -77,10 +90,14 @@ const updateSymbolCache = async (tagsFile, projectRoot) => {
         const data = (await vscode.workspace.fs.readFile(tagsFile)).toString()
         const entries = data.split(eol).reduce(parseSymbol.bind(null, projectRoot), [])
         console.log(`Loaded tags from ${tagsFile.fsPath}`)
-        return new SymbolCache(tagsFile, entries)
+        const filteredEntries = uniqueEntries
+            ? uniqueEntries(entries)
+            : entries
+        return new SymbolCache(tagsFile, filteredEntries)
     } catch (e) {
-        console.log(`Unable to read tags from '${tagsFile}'; providing no symbols.`)
-        return new SymbolCache(tagsFile, [])
+        console.log(e)
+        console.log(`Unable to read tags from '${tagsFile.fsPath}'; providing no symbols.`)
+        return new SymbolCache(tagsFile, [], uniqueEntries)
     }
 }
 
@@ -103,11 +120,11 @@ const toTargetAddress = s => {
     try {
         switch(s[0]) {
         case '/':
-            matches = s.match(/^\/(.+)\/\s*;?/)
-            return new RegExp(matches ? matches[1] : s, "m")
+            matches = s.match(/^\/\^(.+)\$\/\s*;?/)
+            return matches ? matches[1] : s
         case '?':
             matches = s.match(/^\?(.+)\?\s*;?/)
-            return new RegExp(matches ? matches[1] : s, "m")
+            return matches ? matches[1] : s
         default:
             return Number(s)
         }
@@ -120,13 +137,14 @@ const provideWorkspaceSymbols = async query => {
     const config = vscode.workspace.getConfiguration("ctagsymbols")
     const tagsFileName = config.get("tagsFileName")
     const minQueryLength = config.get("minQueryLength")
+    const hideDuplicateTags = config.get("hideDuplicateTags")
     if(query.length < minQueryLength) {
         return []
     }
     const projectRoot = vscode.workspace.workspaceFolders[0].uri.fsPath
     const tagsFile = vscode.Uri.file(path.join(projectRoot, tagsFileName))
     const queryRegex = new RegExp(query, "i")
-    await ensureSymbolCacheCoherency(tagsFile, projectRoot)
+    await ensureSymbolCacheCoherency(tagsFile, projectRoot, hideDuplicateTags)
     return symbolCache.entries.filter(entry => entry.name.match(queryRegex))
 }
 
