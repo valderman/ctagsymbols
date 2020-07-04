@@ -2,7 +2,7 @@
   "name": "ctagsymbols",
   "displayName": "ctagsymbols",
   "description": "A bare-bones workspace symbol provider for ctags.",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "publisher": "valderman",
   "engines": {
     "vscode": "^1.15.0"
