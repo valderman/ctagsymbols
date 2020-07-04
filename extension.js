@@ -17,44 +17,51 @@ class SymbolCache {
 
 let symbolCache = new SymbolCache()
 
-const needsUpdate = (cache, tagsFile) => {
+const needsUpdate = async (cache, tagsFile) => {
     if(cache.forFile != tagsFile) {
+        console.log("Cache needs update: pointed to a new file.")
         return true
     }
-    if(fs.statSync(tagsFile).mtime > cache.timestamp) {
+    const mtime = await new Promise(resolve => {
+        fs.stat(tagsFile, (err, data) => resolve(data.mtime.getTime()))
+    })
+    if(mtime > cache.timestamp) {
+        console.log("Cache needs update: out of date.")
         return true
     }
     return false
 }
 
-const ensureSymbolCacheCoherency = (tagsFile, projectRoot) => {
-    if(needsUpdate(symbolCache, tagsFile)) {
-        console.log("Cache is out of date; updating...")
-        symbolCache = updateSymbolCache(tagsFile, projectRoot)
+const ensureSymbolCacheCoherency = async (tagsFile, projectRoot) => {
+    if(await needsUpdate(symbolCache, tagsFile)) {
+        symbolCache = await updateSymbolCache(tagsFile, projectRoot)
     }
 }
 
 const tagLineRegex = /([^\t]+)\t([^\t]+)\t(.*)/
-const updateSymbolCache = (tagsFile, projectRoot) => {
-    try {
-        const data = fs.readFileSync(tagsFile)
-        const entries = data.toString()
-            .split("\n")
-            .map(ln => {
-                if(ln.startsWith('!_TAG_')) {
-                    return null
-                }
-                const parts = ln.match(tagLineRegex)
-                return (parts && parts.length == 4)
-                    ? toSymbolInformation(parts[1], parts[2], parts[3], projectRoot)
-                    : null
-            })
-            .filter(entry => entry)
-        return new SymbolCache(tagsFile, entries)
-    } catch (e) {
-        console.log("Unable to read tags file; providing no symbols.")
-        return new SymbolCache(tagsFile)
+const updateSymbolCache = async (tagsFile, projectRoot) => {
+    const data = await new Promise(resolve => {
+        fs.readFile(tagsFile, (err, data) => {
+            if(err) {
+                console.log("Unable to read tags file; providing no symbols.")
+                resolve("")
+            }
+            resolve(data.toString())
+        })
+    })
+    const entries = data.split("\n").reduce(parseSymbol.bind(null, projectRoot), [])
+    return new SymbolCache(tagsFile, entries)
+}
+
+const parseSymbol = (projectRoot, entries, line) => {
+    if(!line.startsWith('!_TAG_')) {
+        const parts = line.match(tagLineRegex)
+        if(parts && parts.length == 4) {
+            const entry = toSymbolInformation(parts[1], parts[2], parts[3], projectRoot)
+            entries.push(entry)
+        }
     }
+    return entries
 }
 
 const toSymbolInformation = (symbol, file, address, projectRoot) => {
@@ -64,11 +71,11 @@ const toSymbolInformation = (symbol, file, address, projectRoot) => {
     return new vscode.SymbolInformation(symbol, vscode.SymbolKind.Constant, "", loc)
 }
 
-const provideWorkspaceSymbols = query => {
+const provideWorkspaceSymbols = async query => {
     const projectRoot = vscode.workspace.workspaceFolders[0].uri.fsPath
     const tagsFile = path.join(projectRoot, ".tags")
     const queryRegex = new RegExp(query, "i")
-    ensureSymbolCacheCoherency(tagsFile, projectRoot)
+    await ensureSymbolCacheCoherency(tagsFile, projectRoot)
     return symbolCache.entries.filter(entry => entry.name.match(queryRegex))
 }
 
