@@ -1,9 +1,11 @@
-const path = require('path')
-const vscode = require('vscode')
-const fs = require('fs')
+const path = require("path")
+const vscode = require("vscode")
+const fs = require("fs")
 
 exports.activate = () => {
-    vscode.languages.registerWorkspaceSymbolProvider(symbolProvider)
+    vscode.languages.registerWorkspaceSymbolProvider({
+        provideWorkspaceSymbols: provideWorkspaceSymbols
+    })
 }
 exports.deactivate = () => {}
 
@@ -43,7 +45,7 @@ const updateSymbolCache = async (tagsFile, projectRoot) => {
     const data = await new Promise(resolve => {
         fs.readFile(tagsFile, (err, data) => {
             if(err) {
-                console.log("Unable to read tags file; providing no symbols.")
+                console.log(`Unable to read tags from '${tagsFile}'; providing no symbols.`)
                 resolve("")
             }
             resolve(data.toString())
@@ -54,7 +56,7 @@ const updateSymbolCache = async (tagsFile, projectRoot) => {
 }
 
 const parseSymbol = (projectRoot, entries, line) => {
-    if(!line.startsWith('!_TAG_')) {
+    if(!line.startsWith("!_TAG_")) {
         const parts = line.match(tagLineRegex)
         if(parts && parts.length == 4) {
             const entry = toSymbolInformation(parts[1], parts[2], parts[3], projectRoot)
@@ -72,13 +74,11 @@ const toSymbolInformation = (symbol, file, address, projectRoot) => {
 }
 
 const provideWorkspaceSymbols = async query => {
+    const config = vscode.workspace.getConfiguration("ctagsymbols")
+    const tagsFileName = config.get("tagsFileName")
     const projectRoot = vscode.workspace.workspaceFolders[0].uri.fsPath
-    const tagsFile = path.join(projectRoot, ".tags")
+    const tagsFile = path.join(projectRoot, tagsFileName)
     const queryRegex = new RegExp(query, "i")
     await ensureSymbolCacheCoherency(tagsFile, projectRoot)
     return symbolCache.entries.filter(entry => entry.name.match(queryRegex))
-}
-
-const symbolProvider = {
-    provideWorkspaceSymbols: provideWorkspaceSymbols
 }
