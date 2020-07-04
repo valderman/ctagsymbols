@@ -1,6 +1,5 @@
 const path = require("path")
 const vscode = require("vscode")
-const fs = require("fs")
 const eol = require("os").EOL
 
 exports.activate = () => {
@@ -59,14 +58,12 @@ class SymbolCache {
 let symbolCache = new SymbolCache()
 
 const needsUpdate = async (cache, tagsFile) => {
-    if(cache.forFile != tagsFile) {
+    if(!cache.forFile || cache.forFile.fsPath != tagsFile.fsPath) {
         console.log("Cache needs update: pointed to a new file.")
         return true
     }
-    const mtime = await new Promise(resolve => {
-        fs.stat(tagsFile, (err, data) => resolve(data.mtime.getTime()))
-    })
-    if(mtime > cache.timestamp) {
+    const stat = await vscode.workspace.fs.stat(tagsFile)
+    if(stat.mtime > cache.timestamp) {
         console.log("Cache needs update: out of date.")
         return true
     }
@@ -81,19 +78,16 @@ const ensureSymbolCacheCoherency = async (tagsFile, projectRoot) => {
 
 const tagLineRegex = /([^\t]+)\t([^\t]+)\t(.*)/
 const updateSymbolCache = async (tagsFile, projectRoot) => {
-    const data = await new Promise(resolve => {
-        fs.readFile(tagsFile, (err, data) => {
-            if(err) {
-                console.log(`Unable to read tags from '${tagsFile}'; providing no symbols.`)
-                resolve("")
-            }
-            resolve(data.toString())
-        })
-    })
-    const state = {entries: [], format: tagsFormat.numbers}
-    const entries = data.split(eol).reduce(parseSymbol.bind(null, projectRoot), state)
-    console.log(`Loaded tags (format: ${entries.format}) from ${tagsFile}`)
-    return new SymbolCache(tagsFile, entries.entries, state.format)
+    try {
+        const data = (await vscode.workspace.fs.readFile(tagsFile)).toString()
+        const state = {entries: [], format: tagsFormat.numbers}
+        const entries = data.split(eol).reduce(parseSymbol.bind(null, projectRoot), state)
+        console.log(`Loaded tags (format: ${entries.format}) from ${tagsFile.fsPath}`)
+        return new SymbolCache(tagsFile, entries.entries, state.format)
+    } catch (e) {
+        console.log(`Unable to read tags from '${tagsFile}'; providing no symbols.`)
+        return new SymbolCache(tagsFile, [])
+    }
 }
 
 const parseSymbol = (projectRoot, state, line) => {
@@ -128,7 +122,7 @@ const provideWorkspaceSymbols = async query => {
         return []
     }
     const projectRoot = vscode.workspace.workspaceFolders[0].uri.fsPath
-    const tagsFile = path.join(projectRoot, tagsFileName)
+    const tagsFile = vscode.Uri.file(path.join(projectRoot, tagsFileName))
     const queryRegex = new RegExp(query, "i")
     await ensureSymbolCacheCoherency(tagsFile, projectRoot)
     return symbolCache.entries.filter(entry => entry.name.match(queryRegex))
