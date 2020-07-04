@@ -16,6 +16,7 @@ to regenerate your tags whenever you make changes to your source.
 
 ## Extension Settings
 * `ctagsymbols.tagsFile`: path to the ctags file to read symbols from, relative to the workspace root.
+* `ctagsymbols.minQueryLength`: don't process symbol queries shorter than this. May improve performance for large code bases since it avoids listing every single symbol in the entire project.
 
 
 ## Known Issues
