@@ -7,10 +7,29 @@ exports.activate = () => {
 }
 exports.deactivate = () => {}
 
-let symbolCache = null
+class SymbolCache {
+    constructor(forFile = null, entries = []) {
+        this.forFile = forFile
+        this.timestamp = Date.now()
+        this.entries = entries
+    }
+}
+
+let symbolCache = new SymbolCache()
+
+const needsUpdate = (cache, tagsFile) => {
+    if(cache.forFile != tagsFile) {
+        return true
+    }
+    if(fs.statSync(tagsFile).mtime > cache.timestamp) {
+        return true
+    }
+    return false
+}
 
 const ensureSymbolCacheCoherency = (tagsFile, projectRoot) => {
-    if(!symbolCache || fs.statSync(tagsFile).mtime > symbolCache.timestamp) {
+    if(needsUpdate(symbolCache, tagsFile)) {
+        console.log("Cache is out of date; updating...")
         symbolCache = updateSymbolCache(tagsFile, projectRoot)
     }
 }
@@ -31,17 +50,10 @@ const updateSymbolCache = (tagsFile, projectRoot) => {
                     : null
             })
             .filter(entry => entry)
-        return {
-            timestamp: Date.now(),
-            entries: entries
-        }
+        return new SymbolCache(tagsFile, entries)
     } catch (e) {
-        console.log(e)
-        console.log("Unable to open tags file; assuming no symbols.")
-        return {
-            timestamp: Date.now(),
-            entries: []
-        }
+        console.log("Unable to read tags file; providing no symbols.")
+        return new SymbolCache(tagsFile)
     }
 }
 
