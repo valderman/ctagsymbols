@@ -1,19 +1,58 @@
 const path = require("path")
 const vscode = require("vscode")
 const fs = require("fs")
+const eol = require("os").EOL
 
 exports.activate = () => {
     vscode.languages.registerWorkspaceSymbolProvider({
-        provideWorkspaceSymbols: provideWorkspaceSymbols
+        provideWorkspaceSymbols: provideWorkspaceSymbols,
+        resolveWorkspaceSymbol: resolveWorkspaceSymbol
     })
 }
 exports.deactivate = () => {}
 
+const tagsFormat = { numbers: "numbers", regex: "regex" }
+
 class SymbolCache {
-    constructor(forFile = null, entries = []) {
+    constructor(forFile = null, entries = [], format = tagsFormat.numbers) {
         this.forFile = forFile
         this.timestamp = Date.now()
         this.entries = entries
+        this.format = format
+    }
+
+    async resolve(symbolInfo) {
+        if(symbolInfo.location.range) {
+            return symbolInfo
+        }
+        switch(this.format) {
+        case tagsFormat.numbers:
+            symbolInfo.location = this.resolveNumber(symbolInfo)
+            break;
+        case tagsFormat.regex:
+            symbolInfo.location = await this.resolveRegex(symbolInfo)
+            break;
+        }
+        return symbolInfo
+    }
+
+    resolveNumber(symbolInfo) {
+        const line = Number(symbolInfo.target)-1
+        const pos = new vscode.Position(line, 0)
+        return new vscode.Location(symbolInfo.location.uri, pos)
+    }
+
+    async resolveRegex(symbolInfo) {
+        const file = await vscode.workspace.fs.readFile(symbolInfo.location.uri)
+        const fileContent = file.toString()
+        const index = fileContent.indexOf(symbolInfo.target)
+        if(index < 0) {
+            return symbolInfo.location
+        } else {
+            const line = fileContent.substring(0, index).split(eol).length-1
+            const pos = new vscode.Position(line, 0)
+            return new vscode.Location(symbolInfo.location.uri, pos)
+        }
     }
 }
 
@@ -51,26 +90,34 @@ const updateSymbolCache = async (tagsFile, projectRoot) => {
             resolve(data.toString())
         })
     })
-    const entries = data.split("\n").reduce(parseSymbol.bind(null, projectRoot), [])
-    return new SymbolCache(tagsFile, entries)
+    const state = {entries: [], format: tagsFormat.numbers}
+    const entries = data.split(eol).reduce(parseSymbol.bind(null, projectRoot), state)
+    console.log(`Loaded tags (format: ${entries.format}) from ${tagsFile}`)
+    return new SymbolCache(tagsFile, entries.entries, state.format)
 }
 
-const parseSymbol = (projectRoot, entries, line) => {
-    if(!line.startsWith("!_TAG_")) {
+const parseSymbol = (projectRoot, state, line) => {
+    if(line.startsWith("!_TAG_")) {
+        const parts = line.split("\t")
+        if(parts[0] == "!_TAG_FILE_FORMAT" && parts[1] == "2") {
+            state.format = tagsFormat.regex
+        }
+    } else {
         const parts = line.match(tagLineRegex)
         if(parts && parts.length == 4) {
-            const entry = toSymbolInformation(parts[1], parts[2], parts[3], projectRoot)
-            entries.push(entry)
+            const file = path.join(projectRoot, parts[2])
+            const loc = new vscode.Location(vscode.Uri.file(file), null)
+            const entry = new vscode.SymbolInformation(parts[1], vscode.SymbolKind.Constant, "", loc)
+            entry.target = toTargetLine(parts[3])
+            state.entries.push(entry)
         }
     }
-    return entries
+    return state
 }
 
-const toSymbolInformation = (symbol, file, address, projectRoot) => {
-    const line = Number(address.match(/.*\sline:(\d+)\s.*/)[1])
-    const range = new vscode.Range(line, 0, line+1, 1)
-    const loc = new vscode.Location(vscode.Uri.file(path.join(projectRoot, file)), range)
-    return new vscode.SymbolInformation(symbol, vscode.SymbolKind.Constant, "", loc)
+const toTargetLine = s => {
+    const matches = s.match(/\/\^([^/]+)\$\//)
+    return matches ? matches[1] : s
 }
 
 const provideWorkspaceSymbols = async query => {
@@ -85,4 +132,8 @@ const provideWorkspaceSymbols = async query => {
     const queryRegex = new RegExp(query, "i")
     await ensureSymbolCacheCoherency(tagsFile, projectRoot)
     return symbolCache.entries.filter(entry => entry.name.match(queryRegex))
+}
+
+const resolveWorkspaceSymbol = async symbol => {
+    return await symbolCache.resolve(symbol)
 }
