@@ -5,7 +5,7 @@ const eol = require("os").EOL
 exports.activate = () => {
     vscode.languages.registerWorkspaceSymbolProvider({
         provideWorkspaceSymbols: provideWorkspaceSymbols,
-        resolveWorkspaceSymbol: resolveWorkspaceSymbol
+        resolveWorkspaceSymbol: resolveSymbolLocation
     })
 }
 exports.deactivate = () => {}
@@ -23,89 +23,83 @@ const uniqueEntries = entries => {
     return Object.values(groups).map(group => group[0])
 }
 
-class SymbolCache {
-    constructor(forFile = null, entries = [], hideDuplicateTags = false) {
-        this.forFile = forFile
-        this.timestamp = Date.now()
-        this.entries = entries
-    }
-
-    async resolve(symbolInfo) {
-        if(symbolInfo.location.range) {
-            return symbolInfo
-        }
-        if(typeof symbolInfo.target === "number") {
-            symbolInfo.location = this.resolveNumber(symbolInfo)
-        } else {
-            symbolInfo.location = await this.resolveRegex(symbolInfo)
-        }
-        delete symbolInfo.target
+// Updates symbolInfo with the location of the symbol.
+const resolveSymbolLocation = async symbolInfo => {
+    if(symbolInfo.location.range) {
         return symbolInfo
     }
+    if(typeof symbolInfo.target === "number") {
+        symbolInfo.location = resolveNumber(symbolInfo)
+    } else {
+        symbolInfo.location = await resolveLineNumberForPattern(symbolInfo)
+    }
+    delete symbolInfo.target
+    return symbolInfo
+}
 
-    resolveNumber(symbolInfo) {
-        const line = symbolInfo.target-1
+const resolveNumber = symbolInfo => {
+    const line = symbolInfo.target-1
+    const pos = new vscode.Position(line, 0)
+    return new vscode.Location(symbolInfo.location.uri, pos)
+}
+
+// Updates symbolInfo with the location of the first occurrence of its target pattern.
+const resolveLineNumberForPattern = async symbolInfo => {
+    const file = await vscode.workspace.fs.readFile(symbolInfo.location.uri)
+    const fileContent = file.toString()
+    const index = fileContent.indexOf(symbolInfo.target)
+    if(index < 0) {
+        return symbolInfo.location
+    } else {
+        const line = fileContent.substring(0, index).split(eol).length-1
         const pos = new vscode.Position(line, 0)
         return new vscode.Location(symbolInfo.location.uri, pos)
     }
-
-    async resolveRegex(symbolInfo) {
-        const file = await vscode.workspace.fs.readFile(symbolInfo.location.uri)
-        const fileContent = file.toString()
-        const index = fileContent.indexOf(symbolInfo.target)
-        if(index < 0) {
-            return symbolInfo.location
-        } else {
-            const line = fileContent.substring(0, index).split(eol).length-1
-            const pos = new vscode.Position(line, 0)
-            return new vscode.Location(symbolInfo.location.uri, pos)
-        }
-    }
 }
 
-let symbolCache = new SymbolCache()
-
+// Does the given cache differ from the given file?
 const needsUpdate = async (cache, tagsFile) => {
-    if(!cache.forFile || cache.forFile.fsPath != tagsFile.fsPath) {
+    if(!cache || cache.forFile.fsPath != tagsFile.fsPath) {
         console.log("Cache needs update: pointed to a new file.")
         return true
     }
-    const stat = await vscode.workspace.fs.stat(tagsFile)
-    if(stat.mtime > cache.timestamp) {
-        console.log("Cache needs update: out of date.")
-        return true
+    try {
+        const stat = await vscode.workspace.fs.stat(tagsFile)
+        if(stat.mtime > cache.timestamp) {
+            console.log("Cache needs update: out of date.")
+            return true
+        }
+    } catch (e) {
+        // If the file doesn't exist, we only need to recache it if it previously *did* exist.
+        return cache.entries.length != 0
     }
     return false
 }
 
-const ensureSymbolCacheCoherency = async (tagsFile, projectRoot, hideDuplicateTags) => {
-    if(await needsUpdate(symbolCache, tagsFile)) {
-        symbolCache = await updateSymbolCache(tagsFile, projectRoot, hideDuplicateTags)
-    }
-}
-
 const tagLineRegex = /([^\t]+)\t([^\t]+)\t(.*)/
-const updateSymbolCache = async (tagsFile, projectRoot) => {
+
+// Builds an in-memory representation of tagsFile.
+const buildSymbolCache = async (tagsFile, rootDir, hideDuplicateTags) => {
     try {
         const data = (await vscode.workspace.fs.readFile(tagsFile)).toString()
-        const entries = data.split(eol).reduce(parseSymbol.bind(null, projectRoot), [])
+        const entries = data.split(eol).reduce(parseSymbol.bind(null, rootDir), [])
         console.log(`Loaded tags from ${tagsFile.fsPath}`)
-        const filteredEntries = uniqueEntries
+        const filteredEntries = hideDuplicateTags
             ? uniqueEntries(entries)
             : entries
         return new SymbolCache(tagsFile, filteredEntries)
     } catch (e) {
-        console.log(e)
         console.log(`Unable to read tags from '${tagsFile.fsPath}'; providing no symbols.`)
-        return new SymbolCache(tagsFile, [], uniqueEntries)
+        return new SymbolCache(tagsFile, [])
     }
 }
 
-const parseSymbol = (projectRoot, entries, line) => {
+// Parses line into a SymbolInformation and appends it to the end of the entries array.
+const parseSymbol = (rootDir, entries, line) => {
     if(!line.startsWith("!_TAG_")) {
         const parts = line.match(tagLineRegex)
         if(parts && parts.length == 4) {
-            const file = path.join(projectRoot, parts[2])
+            const file = path.join(rootDir, parts[2])
             const loc = new vscode.Location(vscode.Uri.file(file), null)
             const entry = new vscode.SymbolInformation(parts[1], vscode.SymbolKind.Constant, "", loc)
             entry.target = toTargetAddress(parts[3])
@@ -115,6 +109,8 @@ const parseSymbol = (projectRoot, entries, line) => {
     return entries
 }
 
+// Parses the given string into a target address.
+// A target address is either a line number, or a pattern representing the text on the target line.
 const toTargetAddress = s => {
     let matches
     try {
@@ -133,25 +129,84 @@ const toTargetAddress = s => {
     }
 }
 
+// Merges entries in the given list of symbol caches into a single list of entries,
+// sorted by symbol name.
+const mergeCacheEntries = symbolCaches => {
+    let mergedSymbolCache = symbolCaches.flatMap(c => c.entries)
+    mergedSymbolCache.sort((a, b) => {
+        if(a.name < b.name) {
+            return -1
+        }
+        if(a.name > b.name) {
+            return 1
+        }
+        return 0
+    })
+    return mergedSymbolCache
+}
+
+// Returns a new in-memory representation of the given tags file, if the old one is out of date.
+const rebuildIfNecessary = async (cache, folder, tagsFileName, hideDuplicateTags) => {
+    const tagsFile = vscode.Uri.file(path.join(folder.uri.fsPath, tagsFileName))
+    if(await needsUpdate(cache, tagsFile)) {
+        return await buildSymbolCache(tagsFile, folder.uri.fsPath, hideDuplicateTags)
+    }
+}
+
+class SymbolCache {
+    constructor(forFile, entries) {
+        this.forFile = forFile
+        this.timestamp = Date.now()
+        this.entries = entries
+    }
+}
+
+class MergedSymbolCache {
+    constructor() {
+        this.symbolCaches = []
+        this.entries = []
+    }
+
+    // Ensures that this symbol cache is coherent with the tags files backing it.
+    async ensureCoherency(tagsFileName, hideDuplicateTags, folders) {
+        const tasks = folders.map(async (folder, ix) =>
+            await rebuildIfNecessary(this.symbolCaches[ix], folder, tagsFileName, hideDuplicateTags)
+        )
+        const anyUpdated = (await Promise.all(tasks)).reduce((anyUpdated, cache, ix) => {
+            if(cache) {
+                this.symbolCaches[ix] = cache
+                return true
+            }
+            return anyUpdated
+        }, false)
+        if(anyUpdated) {
+            this.entries = mergeCacheEntries(this.symbolCaches)
+        }
+    }
+}
+
+const mergedSymbolCache = new MergedSymbolCache()
+
 const provideWorkspaceSymbols = async query => {
+    // Read settings
     const config = vscode.workspace.getConfiguration("ctagsymbols")
-    const tagsFileName = config.get("tagsFileName")
     const minQueryLength = config.get("minQueryLength")
-    const hideDuplicateTags = config.get("hideDuplicateTags")
-    const maxNumberOfSymbols = config.get("maxNumberOfSymbols")
     if(query.length < minQueryLength) {
         return []
     }
-    const projectRoot = vscode.workspace.workspaceFolders[0].uri.fsPath
-    const tagsFile = vscode.Uri.file(path.join(projectRoot, tagsFileName))
+    const folders = vscode.workspace.workspaceFolders
+    const tagsFileName = config.get("tagsFileName")
+    const hideDuplicateTags = config.get("hideDuplicateTags")
+    const maxNumberOfSymbols = config.get("maxNumberOfSymbols")
+
+    // Ensure we've got the latest tags
+    await mergedSymbolCache.ensureCoherency(tagsFileName, hideDuplicateTags, folders)
+
+    // Query the cached tag list
     const queryRegex = new RegExp(query, "i")
-    await ensureSymbolCacheCoherency(tagsFile, projectRoot, hideDuplicateTags)
-    const filteredEntries = symbolCache.entries.filter(entry => entry.name.match(queryRegex))
+    const filteredEntries = mergedSymbolCache.entries
+        .filter(entry => entry.name.match(queryRegex))
     return maxNumberOfSymbols
         ? filteredEntries.slice(0, maxNumberOfSymbols)
         : filteredEntries
-}
-
-const resolveWorkspaceSymbol = async symbol => {
-    return await symbolCache.resolve(symbol)
 }

@@ -17,12 +17,13 @@ to regenerate your tags whenever you make changes to your source.
 ## Extension Settings
 * `ctagsymbols.tagsFile`: path to the ctags file to read symbols from, relative to the workspace root.
 * `ctagsymbols.hideDuplicateTags`: when there are multiple tags with the same name in the same source file, hide all but the first one.
+  Changes to this setting take effect the next time the tags file is updated or the extension is reloaded.
 * `ctagsymbols.maxNumberOfSymbols`: never display more than this many symbols, regardless of the number of matches.
 * `ctagsymbols.minQueryLength`: don't process symbol queries shorter than this. May improve performance for large code bases since it avoids listing every single symbol in the entire project.
 
 
 ## Known Issues
 * Ignores extended tag information; reports all symbols as constants.
-* Does not support multiple tags files.
+* Only supports a single tags file per workspace root.
 * Ignores concatenated Ex commands in tag files.
 * Treats regex Ex commands as plain string matches.
