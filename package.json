@@ -26,6 +26,10 @@
   ],
   "main": "./extension",
   "contributes": {
+    "commands": [{
+        "command": "ctagsymbols.regenerateTags",
+        "title": "Regenerate CTags"
+    }],
     "configuration": {
       "type": "object",
       "title": "CTags Workspace Symbol Provider Configuration",
@@ -49,6 +53,11 @@
           "type":  ["number", "null"],
           "default": null,
           "description": "Only process searches of at least this many characters. May help performance for large code bases."
+        },
+        "ctagsymbols.regenerateCommand": {
+          "type": "string",
+          "default": "ctags -f \"${tagsFile}\" -R \"${workspaceFolder}\"",
+          "description": "Command to regenerate the CTags file for each workspace root folder. ${tagsFile} and ${workspaceFolder} are replaced with the full paths of the tags file being generated and the workspace folder tags are being generated for respectively."
         }
       }
     }

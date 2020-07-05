@@ -1,10 +1,11 @@
 # CTags Workspace Symbol Provider
-A bare-bones workspace symbol provider using ctags.
+A zero-config workspace symbol provider using ctags.
 
 ## Features
 * Search for tags using the standard "Go to Symbol in Workspace" dialog
 * Multi-root workspace support
 * Cross-platform
+* Regenerate tags files from within VSCode using the `Regenerate CTags` command
 * (Almost) zero-config
 
 This extension is intended to be a complement to your existing language tooling, or to provide a minimal level of
@@ -18,6 +19,8 @@ By default, ctagsymbols looks for tags in `<workspace root>/tags`.
 
 No extended tag information is required, so you can generate your tags file (for most languages)
 by simply running `ctags -R .` in the root folder of your workspace.
+For your convenience, the `Regenerate CTags` command, accessible from the VSCode command palette,
+does exactly this. (This feature requires `ctags` to be installed on your system.)
 
 It is highly recommended to use an extension such as [Run On Save](https://marketplace.visualstudio.com/items?itemName=emeraldwalk.RunOnSave)
 to regenerate your tags whenever you make changes to your source.
@@ -29,6 +32,7 @@ to regenerate your tags whenever you make changes to your source.
   Changes to this setting take effect the next time the tags file is updated or the extension is reloaded.
 * `ctagsymbols.maxNumberOfSymbols`: never display more than this many symbols, regardless of the number of matches.
 * `ctagsymbols.minQueryLength`: don't process symbol queries shorter than this. May improve performance for large code bases since it avoids listing every single symbol in the entire project.
+* `ctagsymbols.regenerateCommand`: command to use for regenerating tags files when `Regenerate CTags` is invoked.
 
 
 ## Known Issues

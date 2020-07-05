@@ -1,12 +1,15 @@
 const path = require("path")
 const vscode = require("vscode")
 const eol = require("os").EOL
+const cp = require("child_process")
 
 exports.activate = () => {
     vscode.languages.registerWorkspaceSymbolProvider({
         provideWorkspaceSymbols: provideWorkspaceSymbols,
         resolveWorkspaceSymbol: resolveSymbolLocation
     })
+
+    vscode.commands.registerCommand("ctagsymbols.regenerateTags", regenerateAllTags)
 }
 exports.deactivate = () => {}
 
@@ -21,20 +24,6 @@ const groupBy = (xs, f) =>
 const uniqueEntries = entries => {
     const groups = groupBy(entries, e => `${e.location.uri.fsPath}:${e.name}`)
     return Object.values(groups).map(group => group[0])
-}
-
-// Updates symbolInfo with the location of the symbol.
-const resolveSymbolLocation = async symbolInfo => {
-    if(symbolInfo.location.range) {
-        return symbolInfo
-    }
-    if(typeof symbolInfo.target === "number") {
-        symbolInfo.location = resolveNumber(symbolInfo)
-    } else {
-        symbolInfo.location = await resolveLineNumberForPattern(symbolInfo)
-    }
-    delete symbolInfo.target
-    return symbolInfo
 }
 
 const resolveNumber = symbolInfo => {
@@ -209,4 +198,50 @@ const provideWorkspaceSymbols = async query => {
     return maxNumberOfSymbols
         ? filteredEntries.slice(0, maxNumberOfSymbols)
         : filteredEntries
+}
+
+// Updates symbolInfo with the location of the symbol.
+const resolveSymbolLocation = async symbolInfo => {
+    if(symbolInfo.location.range) {
+        return symbolInfo
+    }
+    if(typeof symbolInfo.target === "number") {
+        symbolInfo.location = resolveNumber(symbolInfo)
+    } else {
+        symbolInfo.location = await resolveLineNumberForPattern(symbolInfo)
+    }
+    delete symbolInfo.target
+    return symbolInfo
+}
+
+// Regenerate tags files for all workspaces.
+const regenerateAllTags = () => {
+    const config = vscode.workspace.getConfiguration("ctagsymbols")
+    const tagsFile = config.get("tagsFileName")
+    const commandTemplate = config.get("regenerateCommand")
+    vscode.workspace.workspaceFolders.forEach(folder =>
+        regenerateTags(folder.uri.fsPath, tagsFile, commandTemplate)
+    )
+}
+
+const wsFolderRegex = /\$\{workspaceFolder\}/
+const tagsPathRegex = /\$\{tagsFile\}/
+const fillInPaths = (template, folder, tagsPath) =>
+    template.replace(wsFolderRegex, folder).replace(tagsPathRegex, tagsPath)
+
+// Regenerate tags file for the given workspace folder and tags file, using the
+// given command template.
+const regenerateTags = (folder, tagsFile, commandTemplate) => {
+    const tagsPath = path.join(folder, tagsFile)
+    console.log(`Regenerating ${tagsPath}...`)
+    const command = fillInPaths(commandTemplate, folder, tagsPath)
+    cp.exec(command, err => {
+        if(err) {
+            console.error(`Unable to regenerate ${tagsPath}:\n${err.message}`)
+            const message = commandTemplate.startsWith("ctags")
+                ? "Unable to regenerate tags. Have you installed ctags?"
+                : "Unable to regenerate tags. Check your \"Regenerate CTags\" command settings."
+            vscode.window.showErrorMessage(message)
+        }
+    })
 }
