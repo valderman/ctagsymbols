@@ -1,5 +1,9 @@
 # CTags Workspace Symbol Provider
-A bare-bones workspace symbol provider using ctags. Search for tags using the standard "Go to Symbol in Workspace" dialog.
+A bare-bones workspace symbol provider using ctags.
+
+## Features
+* Search for tags using the standard "Go to Symbol in Workspace" dialog.
+* Multi-root workspace support.
 
 This extension is intended to be a complement to your existing language tooling, or to provide a minimal level of
 code navigation support for languages which don't have any native VSCode integrations.
