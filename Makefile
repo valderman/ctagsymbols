@@ -3,3 +3,6 @@ METADATA = package.json package-lock.json LICENSE README.md CHANGELOG.md
 
 package: $(SOURCES) $(METADATA)
 	npx vsce package .
+
+publish: package
+	npv vsce publish

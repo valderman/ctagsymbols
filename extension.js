@@ -249,7 +249,6 @@ const regenerateTags = (folder, tagsFile, commandTemplate) => {
 // Regenerate tags for the workspace folder in which the given document resides,
 // if this features is enabled.
 const autoRegenerateTags = textDocument => {
-    console.log(textDocument.fileName)
     const config = vscode.workspace.getConfiguration("ctagsymbols")
     if(config.get("regenerateOnSave")) {
         const tagsFile = config.get("tagsFileName")
@@ -257,6 +256,8 @@ const autoRegenerateTags = textDocument => {
         const workspace = vscode.workspace.workspaceFolders.find(ws =>
             textDocument.fileName.startsWith(ws.uri.fsPath)
         )
-        regenerateTags(workspace.uri.fsPath, tagsFile, commandTemplate)
+        if(workspace) {
+            regenerateTags(workspace.uri.fsPath, tagsFile, commandTemplate)
+        }
     }
 }
