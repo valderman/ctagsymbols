@@ -2,8 +2,10 @@
 A bare-bones workspace symbol provider using ctags.
 
 ## Features
-* Search for tags using the standard "Go to Symbol in Workspace" dialog.
-* Multi-root workspace support.
+* Search for tags using the standard "Go to Symbol in Workspace" dialog
+* Multi-root workspace support
+* Cross-platform
+* (Almost) zero-config
 
 This extension is intended to be a complement to your existing language tooling, or to provide a minimal level of
 code navigation support for languages which don't have any native VSCode integrations.
@@ -12,7 +14,10 @@ I originally wrote it for use with the [Simple GHC Integration](https://marketpl
 
 ## Setup
 ctagsymbols requires a tags file to work. This may be generated using [Exuberant Ctags](http://ctags.sourceforge.net), hasktags (for Haskell), etc.
-By default, ctagsymbols looks for tags in `<workspace root>/.tags`.
+By default, ctagsymbols looks for tags in `<workspace root>/tags`.
+
+No extended tag information is required, so you can generate your tags file (for most languages)
+by simply running `ctags -R .` in the root folder of your workspace.
 
 It is highly recommended to use an extension such as [Run On Save](https://marketplace.visualstudio.com/items?itemName=emeraldwalk.RunOnSave)
 to regenerate your tags whenever you make changes to your source.
