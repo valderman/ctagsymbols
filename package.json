@@ -27,7 +27,7 @@
   "contributes": {
     "configuration": {
       "type": "object",
-      "title": "ctagsymbols configuration",
+      "title": "CTags Workspace Symbol Provider Configuration",
       "properties": {
         "ctagsymbols.tagsFileName": {
           "type": "string",
@@ -37,7 +37,7 @@
         "ctagsymbols.hideDuplicateTags": {
           "type": "boolean",
           "default": true,
-          "description": "When there are multiple identical tags in the same source file, only display the first one."
+          "description": "When there are multiple identical tags in the same source file, only display the first one. Changes to this setting take effect the next time the tags file is updated or the extension is reloaded."
         },
         "ctagsymbols.maxNumberOfSymbols": {
           "type": ["number", "null"],

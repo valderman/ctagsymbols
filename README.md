@@ -1,7 +1,7 @@
-# ctagsymbols
+# CTags Workspace Symbol Provider
 A bare-bones workspace symbol provider using ctags. Search for tags using the standard "Go to Symbol in Workspace" dialog.
 
-This extension is intended to be used as a complement to your existing language tooling, or to provide a minimal level of
+This extension is intended to be a complement to your existing language tooling, or to provide a minimal level of
 code navigation support for languages which don't have any native VSCode integrations.
 I originally wrote it for use with the [Simple GHC Integration](https://marketplace.visualstudio.com/items?itemName=dramforever.vscode-ghc-simple).
 
@@ -24,6 +24,6 @@ to regenerate your tags whenever you make changes to your source.
 
 ## Known Issues
 * Ignores extended tag information; reports all symbols as constants.
-* Only supports a single tags file per workspace root.
+* Only supports one tags file per workspace root.
 * Ignores concatenated Ex commands in tag files.
 * Treats regex Ex commands as plain string matches.
