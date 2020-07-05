@@ -32,7 +32,7 @@
       "properties": {
         "ctagsymbols.tagsFileName": {
           "type": "string",
-          "default": ".tags",
+          "default": "tags",
           "description": "Path of the file to search for tags, relative to the project root."
         },
         "ctagsymbols.hideDuplicateTags": {
