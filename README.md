@@ -5,7 +5,8 @@ A zero-config workspace symbol provider using ctags.
 * Search for tags using the standard "Go to Symbol in Workspace" dialog
 * Multi-root workspace support
 * Cross-platform
-* Regenerate tags files from within VSCode using the `Regenerate CTags` command
+* Regenerate tags from within VSCode using the `Regenerate CTags` command
+* Automatically regenerate tags on file save (disabled by default)
 * (Almost) zero-config
 
 This extension is intended to be a complement to your existing language tooling, or to provide a minimal level of
@@ -22,8 +23,11 @@ by simply running `ctags -R .` in the root folder of your workspace.
 For your convenience, the `Regenerate CTags` command, accessible from the VSCode command palette,
 does exactly this. (This feature requires `ctags` to be installed on your system.)
 
-It is highly recommended to use an extension such as [Run On Save](https://marketplace.visualstudio.com/items?itemName=emeraldwalk.RunOnSave)
-to regenerate your tags whenever you make changes to your source.
+You can also let this extension regenerate your tags files automatically whenever you save a source file.
+This will regenerate the tags file for the workspace in which the saved file resides.
+
+This feature is disabled by default due to performance concerns with huge code bases. It's recommended
+that you enable this feature on a per-workspace basis, rather than for all your projects.
 
 
 ## Extension Settings
@@ -40,3 +44,4 @@ to regenerate your tags whenever you make changes to your source.
 * Only supports one tags file per workspace root.
 * Ignores concatenated Ex commands in tag files.
 * Treats regex Ex commands as plain string matches.
+* Does not support regenerating tags on save for only some file types; it's all or nothing.
