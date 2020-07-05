@@ -88,7 +88,9 @@ const parseSymbol = (rootDir, entries, line) => {
     if(!line.startsWith("!_TAG_")) {
         const parts = line.match(tagLineRegex)
         if(parts && parts.length == 4) {
-            const file = path.join(rootDir, parts[2])
+            const file = path.isAbsolute(parts[2])
+                ? parts[2]
+                : path.join(rootDir, parts[2])
             const loc = new vscode.Location(vscode.Uri.file(file), null)
             const entry = new vscode.SymbolInformation(parts[1], vscode.SymbolKind.Constant, "", loc)
             entry.target = toTargetAddress(parts[3])
