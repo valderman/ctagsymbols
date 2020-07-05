@@ -5,4 +5,4 @@ package: $(SOURCES) $(METADATA)
 	npx vsce package .
 
 publish: package
-	npv vsce publish
+	npx vsce publish
