@@ -1,4 +1,4 @@
-# CTags Workspace Symbol Provider
+# CTags Symbol Search
 A zero-config workspace symbol provider using ctags.
 
 ## Features
@@ -7,27 +7,32 @@ A zero-config workspace symbol provider using ctags.
 * Cross-platform
 * Regenerate tags from within VSCode using the `Regenerate CTags` command
 * Automatically regenerate tags on file save (disabled by default)
-* (Almost) zero-config
+* Works out of the box without having to touch any configuration
 
 This extension is intended to be a complement to your existing language tooling, or to provide a minimal level of
 code navigation support for languages which don't have any native VSCode integrations.
 I originally wrote it for use with the [Simple GHC Integration](https://marketplace.visualstudio.com/items?itemName=dramforever.vscode-ghc-simple).
 
 
-## Setup
-ctagsymbols requires a tags file to work. This may be generated using [Exuberant Ctags](http://ctags.sourceforge.net), hasktags (for Haskell), etc.
-By default, ctagsymbols looks for tags in `<workspace root>/tags`.
+## Requirements
+A program to generate the `ctags` file for your language.
+For most language this would be [Exuberant Ctags](http://ctags.sourceforge.net),
+for Haskell it would be [hasktags](https://hackage.haskell.org/package/hasktags), etc.
 
-No extended tag information is required, so you can generate your tags file (for most languages)
-by simply running `ctags -R .` in the root folder of your workspace.
-For your convenience, the `Regenerate CTags` command, accessible from the VSCode command palette,
-does exactly this. (This feature requires `ctags` to be installed on your system.)
+
+## Setup
+If you have [Exuberant Ctags](http://ctags.sourceforge.net) installed and are
+using a language it supports, the default settings have got you covered.
+Just run the `Regenerate CTags` command whenever you need to update your tags, and you're good to go.
 
 You can also let this extension regenerate your tags files automatically whenever you save a source file.
 This will regenerate the tags file for the workspace in which the saved file resides.
-
 This feature is disabled by default due to performance concerns with huge code bases. It's recommended
 that you enable this feature on a per-workspace basis, rather than for all your projects.
+
+If you're using Haskell, you will want to change the `Regenerate Command` to
+`hasktags -f "${tagsFile}" -cxR "${workspaceFolder}"`, to let `hasktags` handle
+tag regeneration instead of `ctags`.
 
 
 ## Extension Settings
@@ -37,6 +42,7 @@ that you enable this feature on a per-workspace basis, rather than for all your 
 * `ctagsymbols.maxNumberOfSymbols`: never display more than this many symbols, regardless of the number of matches.
 * `ctagsymbols.minQueryLength`: don't process symbol queries shorter than this. May improve performance for large code bases since it avoids listing every single symbol in the entire project.
 * `ctagsymbols.regenerateCommand`: command to use for regenerating tags files when `Regenerate CTags` is invoked.
+* `ctagsymbols.regenerateOnSave`: should the `Regenerate CTags` command be run whenever a file is saved?
 
 
 ## Known Issues

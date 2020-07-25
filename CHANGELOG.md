@@ -1,5 +1,10 @@
 # Change Log
 
+## **0.3.1** (2020-07-25)
+- Less cryptic display name and description
+- Documentation fixes
+- Bump lodash version
+
 ## **0.3.0** (2020-07-06)
 - Added "Regenerate CTags" command
 - Optionally regenerate tags automatically on file save
