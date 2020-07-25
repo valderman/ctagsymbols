@@ -2,7 +2,7 @@
   "name": "ctagsymbols",
   "displayName": "CTags Symbol Search",
   "description": "Workspace symbol search for ctags.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "valderman",
   "icon": "logo.png",
   "engines": {
@@ -26,10 +26,12 @@
   ],
   "main": "./extension",
   "contributes": {
-    "commands": [{
+    "commands": [
+      {
         "command": "ctagsymbols.regenerateTags",
         "title": "Regenerate CTags"
-    }],
+      }
+    ],
     "configuration": {
       "type": "object",
       "title": "CTags Workspace Symbol Provider Configuration",
@@ -45,12 +47,18 @@
           "description": "When there are multiple identical tags in the same source file, only display the first one. Changes to this setting take effect the next time the tags file is updated or the extension is reloaded."
         },
         "ctagsymbols.maxNumberOfSymbols": {
-          "type": ["number", "null"],
+          "type": [
+            "number",
+            "null"
+          ],
           "default": null,
           "description": "Never show more than this many tags, regardless of the number of matches."
         },
         "ctagsymbols.minQueryLength": {
-          "type":  ["number", "null"],
+          "type": [
+            "number",
+            "null"
+          ],
           "default": null,
           "description": "Only process searches of at least this many characters. May help performance for large code bases."
         },
