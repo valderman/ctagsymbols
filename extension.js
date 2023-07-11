@@ -107,8 +107,8 @@ const toTargetAddress = s => {
     try {
         switch(s[0]) {
         case '/':
-            matches = s.match(/^\/\^(.+)\$\/\s*;?/)
-            return matches ? matches[1] : s
+            matches = s.match(/^\/(\^)?(?<exp>.+(?<!\$))(\$)?\/\s*;?/)
+            return matches ? matches.groups.exp : s
         case '?':
             matches = s.match(/^\?(.+)\?\s*;?/)
             return matches ? matches[1] : s
