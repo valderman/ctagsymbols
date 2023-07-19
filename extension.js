@@ -226,8 +226,8 @@ const regenerateAllTags = () => {
     )
 }
 
-const wsFolderRegex = /\$\{workspaceFolder\}/
-const tagsPathRegex = /\$\{tagsFile\}/
+const wsFolderRegex = /\$\{workspaceFolder\}/g
+const tagsPathRegex = /\$\{tagsFile\}/g
 const fillInPaths = (template, folder, tagsPath) =>
     template.replaceAll(wsFolderRegex, folder).replaceAll(tagsPathRegex, tagsPath)
 
